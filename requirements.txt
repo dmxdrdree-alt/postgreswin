@@ -1,0 +1,3 @@
+# PostgreSQL Backup and Restore Utility Dependencies
+# No external packages required beyond Python standard library
+# Uses tkinter for GUI, subprocess for system commands, etc.
