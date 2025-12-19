@@ -1,0 +1,54 @@
+```
+# Build artifacts and distributions
+build/
+dist/
+*.spec
+
+# Python compiled files
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Executables
+*.exe
+*.dll
+*.so
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Editors/IDE
+.vscode/
+.idea/
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# MyPy cache
+.mypy_cache/
+
+# Pytest cache
+.pytest_cache/
+
+# Distribution / packaging
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# OS generated files
+.DS_Store
+Thumbs.db
+```
