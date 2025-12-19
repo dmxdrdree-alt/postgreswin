@@ -7,7 +7,8 @@ A comprehensive GUI application for PostgreSQL database backup and restoration w
 ### 1. Connection Management
 - Fields for host, port, database name, user, and password
 - "Check Connection" button (executes pg_isready or SELECT 1 via psql)
-- Automatic or manual specification of paths to pg_dump.exe, pg_restore.exe, and psql.exe
+- **Automatic Path Detection**: The application automatically detects PostgreSQL executables from Windows registry or common installation paths (C:\Program Files\PostgreSQL\)
+- Manual specification of paths to pg_dump.exe, pg_restore.exe, and psql.exe if automatic detection fails
 
 ### 2. Backup Capabilities
 - **Format Selection**: Choose between Plain SQL (.sql) and Custom (.backup) formats

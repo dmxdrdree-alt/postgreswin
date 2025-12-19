@@ -1,9 +1,12 @@
-```
-# Python
-__pycache__/
+```gitignore
+# Compiled and binary files
 *.pyc
-*.pyo
-*.pyd
+__pycache__/
+*.o
+*.obj
+*.so
+*.dll
+*.exe
 
 # Dependencies
 venv/
@@ -12,15 +15,19 @@ venv/
 .env.local
 *.env.*
 
-# Logs
-*.log
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
-# Editors
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# Editors/IDE
 .vscode/
 .idea/
-
-# Temp files
-*.tmp
 *.swp
 *.swo
 
@@ -29,8 +36,12 @@ venv/
 coverage/
 htmlcov/
 
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
+# System files
+.DS_Store
+Thumbs.db
+
+# MyPy cache
+.mypy_cache/
+# Pytest cache
+.pytest_cache/
 ```

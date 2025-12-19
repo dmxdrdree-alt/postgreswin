@@ -14,6 +14,7 @@ from tkinter import ttk, messagebox, filedialog, scrolledtext
 from datetime import datetime
 import re
 import shutil
+import winreg
 
 
 class PostgreSQLBackupRestoreApp:
@@ -46,6 +47,146 @@ class PostgreSQLBackupRestoreApp:
         self.create_backup_tab()
         self.create_restore_tab()
         self.create_schedule_tab()
+        
+        # Auto-detect PostgreSQL paths if not configured
+        self.auto_detect_postgresql_paths()
+    
+    def auto_detect_postgresql_paths(self):
+        """Auto-detect PostgreSQL installation paths from Windows registry"""
+        try:
+            # Try to get PostgreSQL installation path from registry
+            reg_paths = [
+                r"SOFTWARE\PostgreSQL\Installations",
+                r"SOFTWARE\Wow6432Node\PostgreSQL\Installations"
+            ]
+            
+            for reg_path in reg_paths:
+                try:
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path) as key:
+                        i = 0
+                        while True:
+                            try:
+                                subkey_name = winreg.EnumKey(key, i)
+                                with winreg.OpenKey(key, subkey_name) as subkey:
+                                    try:
+                                        pgsql_dir = winreg.QueryValueEx(subkey, "Base Directory")[0]
+                                        bin_dir = os.path.join(pgsql_dir, "bin")
+                                        
+                                        # Check if executables exist in this directory
+                                        pg_dump_path = os.path.join(bin_dir, "pg_dump.exe")
+                                        pg_restore_path = os.path.join(bin_dir, "pg_restore.exe")
+                                        psql_path = os.path.join(bin_dir, "psql.exe")
+                                        
+                                        # Update config if executables exist and not already set
+                                        if not self.config.get("pg_dump_path") and os.path.exists(pg_dump_path):
+                                            self.config["pg_dump_path"] = pg_dump_path
+                                        if not self.config.get("pg_restore_path") and os.path.exists(pg_restore_path):
+                                            self.config["pg_restore_path"] = pg_restore_path
+                                        if not self.config.get("psql_path") and os.path.exists(psql_path):
+                                            self.config["psql_path"] = psql_path
+                                        
+                                        # Update GUI entries if they're empty
+                                        if not self.pg_dump_entry.get() and os.path.exists(pg_dump_path):
+                                            self.pg_dump_entry.delete(0, tk.END)
+                                            self.pg_dump_entry.insert(0, pg_dump_path)
+                                        if not self.pg_restore_entry.get() and os.path.exists(pg_restore_path):
+                                            self.pg_restore_entry.delete(0, tk.END)
+                                            self.pg_restore_entry.insert(0, pg_restore_path)
+                                        if not self.psql_entry.get() and os.path.exists(psql_path):
+                                            self.psql_entry.delete(0, tk.END)
+                                            self.psql_entry.insert(0, psql_path)
+                                            
+                                    except FileNotFoundError:
+                                        pass
+                                i += 1
+                            except OSError:
+                                break
+                except FileNotFoundError:
+                    continue
+                    
+            # Also try common installation paths
+            common_paths = [
+                r"C:\Program Files\PostgreSQL",
+                r"C:\Program Files (x86)\PostgreSQL"
+            ]
+            
+            for base_path in common_paths:
+                if os.path.exists(base_path):
+                    # Find the latest version folder
+                    versions = []
+                    for item in os.listdir(base_path):
+                        item_path = os.path.join(base_path, item)
+                        if os.path.isdir(item_path) and item.replace('.', '').isdigit():
+                            versions.append((item, item_path))
+                    
+                    # Sort by version number (descending)
+                    versions.sort(key=lambda x: [int(i) for i in x[0].split('.')], reverse=True)
+                    
+                    for version, version_path in versions:
+                        bin_dir = os.path.join(version_path, "bin")
+                        pg_dump_path = os.path.join(bin_dir, "pg_dump.exe")
+                        pg_restore_path = os.path.join(bin_dir, "pg_restore.exe")
+                        psql_path = os.path.join(bin_dir, "psql.exe")
+                        
+                        if not self.config.get("pg_dump_path") and os.path.exists(pg_dump_path):
+                            self.config["pg_dump_path"] = pg_dump_path
+                        if not self.config.get("pg_restore_path") and os.path.exists(pg_restore_path):
+                            self.config["pg_restore_path"] = pg_restore_path
+                        if not self.config.get("psql_path") and os.path.exists(psql_path):
+                            self.config["psql_path"] = psql_path
+                            
+                        # Update GUI entries if they're empty
+                        if hasattr(self, 'pg_dump_entry') and not self.pg_dump_entry.get() and os.path.exists(pg_dump_path):
+                            self.pg_dump_entry.delete(0, tk.END)
+                            self.pg_dump_entry.insert(0, pg_dump_path)
+                        if hasattr(self, 'pg_restore_entry') and not self.pg_restore_entry.get() and os.path.exists(pg_restore_path):
+                            self.pg_restore_entry.delete(0, tk.END)
+                            self.pg_restore_entry.insert(0, pg_restore_path)
+                        if hasattr(self, 'psql_entry') and not self.psql_entry.get() and os.path.exists(psql_path):
+                            self.psql_entry.delete(0, tk.END)
+                            self.psql_entry.insert(0, psql_path)
+                        
+                        # Break after finding the first valid installation
+                        if any([os.path.exists(path) for path in [pg_dump_path, pg_restore_path, psql_path]]):
+                            break
+        except Exception:
+            # If registry access fails, silently continue
+            pass
+    
+    def validate_executables(self):
+        """Validate that all required PostgreSQL executables exist"""
+        errors = []
+        
+        # Check pg_dump
+        pg_dump_path = self.config.get("pg_dump_path", "")
+        if not pg_dump_path or not os.path.exists(pg_dump_path):
+            errors.append("pg_dump не найден. Укажите правильный путь в настройках подключения.")
+        else:
+            self.pg_dump_path_to_use = pg_dump_path
+        
+        # Check pg_restore
+        pg_restore_path = self.config.get("pg_restore_path", "")
+        if not pg_restore_path or not os.path.exists(pg_restore_path):
+            errors.append("pg_restore не найден. Укажите правильный путь в настройках подключения.")
+        else:
+            self.pg_restore_path_to_use = pg_restore_path
+            
+        # Check psql
+        psql_path = self.config.get("psql_path", "")
+        if not psql_path or not os.path.exists(psql_path):
+            errors.append("psql не найден. Укажите правильный путь в настройках подключения.")
+        else:
+            self.psql_path_to_use = psql_path
+        
+        # If we don't have configured paths, try to use system PATH
+        if not hasattr(self, 'pg_dump_path_to_use'):
+            self.pg_dump_path_to_use = "pg_dump"
+        if not hasattr(self, 'pg_restore_path_to_use'):
+            self.pg_restore_path_to_use = "pg_restore"
+        if not hasattr(self, 'psql_path_to_use'):
+            self.psql_path_to_use = "psql"
+        
+        return errors
     
     def load_config(self):
         """Load configuration from JSON file"""
@@ -421,6 +562,12 @@ class PostgreSQLBackupRestoreApp:
     def perform_backup(self):
         """Perform the actual backup operation"""
         try:
+            # Validate executables first
+            errors = self.validate_executables()
+            if errors:
+                self.update_backup_log("Ошибка: " + "\n".join(errors))
+                return
+
             # Get settings
             host = self.host_entry.get()
             port = self.port_entry.get()
@@ -446,10 +593,10 @@ class PostgreSQLBackupRestoreApp:
             env = os.environ.copy()
             env['PGPASSWORD'] = password
             
-            # Build command
+            # Build command using validated paths
             if backup_format == "sql":
                 cmd = [
-                    "pg_dump",
+                    self.pg_dump_path_to_use,
                     "-h", host,
                     "-p", port,
                     "-U", username,
@@ -458,7 +605,7 @@ class PostgreSQLBackupRestoreApp:
                 ]
             else:
                 cmd = [
-                    "pg_dump",
+                    self.pg_dump_path_to_use,
                     "-h", host,
                     "-p", port,
                     "-U", username,
@@ -583,6 +730,12 @@ class PostgreSQLBackupRestoreApp:
     def perform_restore(self):
         """Perform the actual restore operation"""
         try:
+            # Validate executables first
+            errors = self.validate_executables()
+            if errors:
+                self.update_restore_log("Ошибка: " + "\n".join(errors))
+                return
+
             restore_file = self.restore_file_entry.get()
             target_db = self.target_db_entry.get()
             host = self.host_entry.get()
@@ -602,7 +755,7 @@ class PostgreSQLBackupRestoreApp:
             if restore_file.lower().endswith('.sql'):
                 # Restore using psql
                 cmd = [
-                    "psql",
+                    self.psql_path_to_use,
                     "-h", host,
                     "-p", port,
                     "-U", username,
@@ -612,7 +765,7 @@ class PostgreSQLBackupRestoreApp:
             else:
                 # Restore using pg_restore
                 cmd = [
-                    "pg_restore",
+                    self.pg_restore_path_to_use,
                     "-h", host,
                     "-p", port,
                     "-U", username,
